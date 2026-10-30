@@ -15,7 +15,7 @@ export async function importProjects(s:SupabaseClient,o:{fileName:string;sheetNa
  const importId=randomUUID(),now=new Date().toISOString();
  // 1. read existing projects
  const ex=new Map<number,any>();
- for(const ids of chunk(o.items.map(x=>x.job_id),300)){
+ for(const ids of chunk(o.items.map(x=>x.job_id),1000)){
   const {data,error}=await s.from("projects").select("job_id,job_name,branch_name,total_boxes,total_documents,total_sheets,date_of_delivery,source_payload,import_state").in("job_id",ids);
   if(error)throw new Error("Read existing projects failed: "+error.message);
   (data||[]).forEach((r:any)=>ex.set(Number(r.job_id),r));
@@ -44,12 +44,22 @@ export async function importProjects(s:SupabaseClient,o:{fileName:string;sheetNa
   log.push({import_id:importId,job_id:it.job_id,change_type:type,before_data:before,incoming_data:it});
  }
  // 4. write (upsert by job_id; status/box/dossier columns are not in the payload so they stay as they are)
- for(const part of chunk(upserts,500)){
-  const {error}=await s.from("projects").upsert(part,{onConflict:"job_id"});
-  if(error)throw new Error("Saving projects failed: "+error.message);
- }
- for(const part of chunk(log,500)){const {error}=await s.from("import_row_changes").insert(part);if(error)throw new Error("Saving import log failed: "+error.message)}
- await s.from("import_batches").update({new_rows:nw,changed_rows:changed+applied,unchanged_rows:unchanged}).eq("id",importId);
- await s.from("audit_logs").insert({action:"Excel import",entity_type:"import_batch",entity_id:importId,after_data:{file:o.fileName,sheet:o.sheetName,rows:o.items.length,new:nw,changed,applied,filled_blanks:filled,unchanged}});
+ // Keep requests below PostgREST payload limits while allowing a small amount
+ // of parallelism instead of serial network round-trips.
+ const writeBatches=async<T,>(rows:T[],size:number,write:(part:T[])=>PromiseLike<{error:any}>,label:string)=>{
+  const parts=chunk(rows,size);
+  for(let i=0;i<parts.length;i+=3){
+   const results=await Promise.all(parts.slice(i,i+3).map(write));
+   const failed=results.find(x=>x.error);
+   if(failed?.error)throw new Error(label+": "+failed.error.message);
+  }
+ };
+ await writeBatches(upserts,500,part=>s.from("projects").upsert(part as any[],{onConflict:"job_id"}),"Saving projects failed");
+ await writeBatches(log,500,part=>s.from("import_row_changes").insert(part as any[]),"Saving import log failed");
+ const {error:batchError}=await s.from("import_batches").update({new_rows:nw,changed_rows:changed+applied,unchanged_rows:unchanged}).eq("id",importId);
+ if(batchError)throw new Error("Updating import summary failed: "+batchError.message);
+ const {error:auditError}=await s.from("audit_logs").insert({action:"Excel import",entity_type:"import_batch",entity_id:importId,after_data:{file:o.fileName,sheet:o.sheetName,rows:o.items.length,new:nw,changed,applied,filled_blanks:filled,unchanged}});
+ if(auditError)throw new Error("Writing import audit failed: "+auditError.message);
+
  return {import_id:importId,total_valid_rows:o.items.length,new:nw,changed,applied,filled_blanks:filled,unchanged,duplicate_rows:o.duplicates.length,invalid_rows:o.errors.length};
 }

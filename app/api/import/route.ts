@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import {importProjects} from "../../../lib/importer";
 import {parseWorkbook} from "../../../lib/parse";
-import {session} from "../../../lib/server";import {allocate} from "../../../lib/alloc";
+import {session} from "../../../lib/server";
 
 export const runtime = "nodejs";
 export async function POST(req:Request){
@@ -31,8 +31,6 @@ export async function POST(req:Request){
   let data:any;
   try{data=await importProjects(supabase,{fileName:file.name,sheetName,items:normalized,rowCount:raw.length,duplicates,errors,apply:form.get("apply")==="1"})}
   catch(e:any){return NextResponse.json({error:"Database import failed",details:e?.message||String(e),row_errors:errors.slice(0,100)},{status:500})}
-  let allocation:any[]=[];let allocError="";try{allocation=await allocate(supabase,sess.uid)}catch(e:any){allocError=e?.message||String(e)}
-  const tot=await supabase.from("projects").select("job_id",{count:"exact",head:true});const dbTotal=tot.count??null;
-  return NextResponse.json({ok:true,db_total:dbTotal,alloc_error:allocError,allocation,file:file.name,sheet:sheetName,source_rows:raw.length,valid_unique_rows:normalized.length,duplicate_rows:duplicates.length,invalid_rows:errors.length,result:data,...diag,row_errors:errors.slice(0,100)});
+  return NextResponse.json({ok:true,allocation_pending:true,file:file.name,sheet:sheetName,source_rows:raw.length,valid_unique_rows:normalized.length,duplicate_rows:duplicates.length,invalid_rows:errors.length,result:data,...diag,row_errors:errors.slice(0,100)});
  }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Unexpected import error"},{status:400});}
 }

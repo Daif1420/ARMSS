@@ -61,6 +61,7 @@ create index if not exists projects_status_idx on public.projects(status);
 create index if not exists projects_branch_idx on public.projects(branch_name);
 create index if not exists projects_box_idx on public.projects(box_id);
 create index if not exists projects_import_state_idx on public.projects(import_state);
+create index if not exists projects_unassigned_job_id_idx on public.projects(job_id) where box_id is null and job_id >= 35150;
 
 create table if not exists public.import_batches(
  id uuid primary key default gen_random_uuid(),
@@ -87,6 +88,8 @@ create table if not exists public.import_row_changes(
  note text,
  created_at timestamptz not null default now()
 );
+create index if not exists import_row_changes_import_id_idx on public.import_row_changes(import_id);
+create index if not exists dossiers_box_number_idx on public.dossiers(box_id,dossier_number);
 create table if not exists public.project_status_history(
  id bigint generated always as identity primary key,
  project_id uuid not null references public.projects(id) on delete restrict,
