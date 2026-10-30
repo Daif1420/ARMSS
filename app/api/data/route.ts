@@ -9,13 +9,13 @@ const s=createClient(u,k,{auth:{persistSession:false}});const kind=new URL(req.u
 async function all(sel:string){const rows:any[]=[];for(let i=0;i<100;i++){const {data,error}=await s.from("projects").select(sel).order("job_id").range(i*1000,i*1000+999);if(error)throw error;const d=(data||[]) as any[];rows.push(...d);if(d.length<1000)break}return rows}
 try{
 if(kind==="projects"){
- // Paged (default 2000 rows per request) so the response never hits the host's response-size limit (e.g. Vercel 4.5 MB).
- const q=new URL(req.url).searchParams,off=Math.max(0,Number(q.get("offset"))||0),lim=Math.min(5000,Math.max(1,Number(q.get("limit"))||2000));
+ // Paged (1000 rows per request: Supabase caps every response at 1000 rows by default) so the response never hits the host's response-size limit (e.g. Vercel 4.5 MB).
+ const q=new URL(req.url).searchParams,off=Math.max(0,Number(q.get("offset"))||0),lim=Math.min(1000,Math.max(1,Number(q.get("limit"))||1000));
  const SEL="job_id,job_name,branch_name,total_boxes,total_documents,total_sheets,date_of_delivery,status,import_state,box_id";
- const {data,error,count}=await s.from("projects").select(SEL,{count:"exact"}).order("job_id").range(off,off+lim-1);if(error)throw error;
+ const {data,error,count}=await s.from("projects").select(SEL,off===0?{count:"exact"}:undefined).order("job_id").range(off,off+lim-1);if(error)throw error;
  const bm=new Map<string,string>();{const {data:bs,error:be}=await s.from("archive_boxes").select("id,box_code");if(be)throw be;(bs||[]).forEach((b:any)=>bm.set(b.id,b.box_code))}
  const rows=((data||[]) as any[]).map(({box_id,...x})=>({...x,box:box_id?bm.get(box_id)??null:null}));
- return J({rows,total:count??null,next:rows.length===lim?off+lim:null})}
+ return J({rows,total:count??null,next:rows.length>0&&rows.length>=lim&&(count==null||off+rows.length<count)?off+rows.length:null})}
 if(kind==="diag"){const c=async(t:string)=>(await s.from(t).select("*",{count:"exact",head:true})).count??0;
  const {count:withDocs}=await s.from("projects").select("job_id",{count:"exact",head:true}).not("total_documents","is",null);
  return J({rows:{projects:await c("projects"),projects_with_documents:withDocs??0,boxes:await c("archive_boxes"),dossiers:await c("dossiers"),imports:await c("import_batches")}})}

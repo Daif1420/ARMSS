@@ -23,6 +23,9 @@ function Finder({rows,onPick}:{rows:any[];onPick:(p:any)=>void}){
   onKeyDown={e=>{if(e.key==="ArrowDown"){e.preventDefault();setI(Math.min(i+1,hits.length-1))}else if(e.key==="ArrowUp"){e.preventDefault();setI(Math.max(i-1,0))}else if(e.key==="Enter")pick(hits[i]);else if(e.key==="Escape")setQ("")}}/>{!q&&<kbd>/</kbd>}
   {q.trim()&&<div className="hits">{hits.length?hits.map((h,n)=><button key={h.job_id} className={"hit"+(n===i?" on":"")} onMouseEnter={()=>setI(n)} onClick={()=>pick(h)}><b>{h.job_id}</b><span>{h.job_name||"Untitled"}</span><i>{h.box||"no box"}</i><Status s={h.status}/></button>):<div className="msg">No project matches “{q}”.</div>}</div>}</div>}
 
+function Empty(){const {d}=useApi("diag");return <><h1>Dashboard</h1><div className="card" style={{marginTop:18,textAlign:"center",padding:40}}><h2 style={{margin:"0 0 6px"}}>No projects to show</h2>
+ {d?<p className="sub">Database check — projects: <b>{d.projects}</b> · with documents: <b>{d.projects_with_documents}</b> · boxes: <b>{d.boxes}</b> · dossiers: <b>{d.dossiers}</b> · imports: <b>{d.imports}</b>.<br/>{d.projects>0?"The database HAS projects but the list came back empty — check the Vercel function logs for /api/data.":"The database has no projects, so the import did not save anything."}</p>:<p className="sub">Checking the database…</p>}
+ <Link href="/import" className="tab on" style={{display:"inline-flex",width:"auto",background:"var(--p)",color:"#fff"}}><Upload size={16}/>Import data</Link></div></>}
 export default function Dashboard(){
  const {d:p,e}=useApi("projects"),{d:b}=useApi("boxes"),{d:au}=useApi("audit"),{d:im}=useApi("imports");
  const [sel,setSel]=useState<any>(null);
@@ -44,7 +47,8 @@ export default function Dashboard(){
 
  if(e)return <div className="msg err" role="alert">{e}</div>;
  if(!p||!m)return <><h1>Dashboard</h1><div className="skel" style={{marginTop:18}}/><div className="skel" style={{marginTop:14,height:200}}/></>;
- if(!p.length)return <><h1>Dashboard</h1><div className="card" style={{marginTop:18,textAlign:"center",padding:40}}><h2 style={{margin:"0 0 6px"}}>The archive is empty</h2><p className="sub">Import the project workbook to see progress, boxes and branches here.</p><Link href="/import" className="tab on" style={{display:"inline-flex",width:"auto",background:"var(--p)"}}><Upload size={16}/>Import data</Link></div></>;
+ if(!p.length)return <Empty/>;
+ if(false)return <><h1>Dashboard</h1><div className="card" style={{marginTop:18,textAlign:"center",padding:40}}><h2 style={{margin:"0 0 6px"}}>The archive is empty</h2><p className="sub">Import the project workbook to see progress, boxes and branches here.</p><Link href="/import" className="tab on" style={{display:"inline-flex",width:"auto",background:"var(--p)"}}><Upload size={16}/>Import data</Link></div></>;
 
  const empty=sum(p,"total_documents")===0&&sum(p,"total_sheets")===0;
  const pct=m.total?Math.round(m.done/m.total*100):0;
