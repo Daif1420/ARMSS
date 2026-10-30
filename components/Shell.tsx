@@ -7,7 +7,7 @@ useEffect(()=>{if(!login)fetch("/api/auth/me").then(r=>r.json()).then(j=>setMe(j
 const role=me.role||"";
 const show=(t:string)=>t==="A"||(t==="S"&&["System Manager","Supervisor"].includes(role))||(t==="M"&&role==="System Manager");
 const on=(h:string)=>h==="/"?p==="/":p===h||p.startsWith(h+"/");
-return <aside className="side"><div className="logo"><img src="/intercom-logo-white.png" alt="Intercom"/><small>Archive records</small></div>
-<nav>{tabs.filter(t=>show(t[3])).map(([h,l,I])=><Link key={h} href={h} className={"tab"+(on(h)?" on":"")}><I size={17}/>{l}</Link>)}</nav>
+return <aside className="side"><div className="logo"><span className="mk"><img src="/intercom-logo-white.png" alt="Intercom"/></span><small>Archive records</small></div>
+<nav>{tabs.filter(t=>show(t[3])).map(([h,l,I])=><Link key={h} href={h} className={"tab"+(on(h)?" on":"")}><I size={18} strokeWidth={1.75}/>{l}</Link>)}</nav>
 <div className="who">{role&&<b>{me.email||"Signed in"}</b>}{role}</div>
-<button className="tab" onClick={async()=>{await fetch("/api/auth/logout",{method:"POST"});location.href="/login"}}><LogOut size={17}/>Log out</button></aside>}
+<button className="tab out" onClick={async()=>{await fetch("/api/auth/logout",{method:"POST"});location.href="/login"}}><LogOut size={18} strokeWidth={1.75}/>Log out</button></aside>}

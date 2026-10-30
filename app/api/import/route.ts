@@ -32,6 +32,7 @@ export async function POST(req:Request){
   try{data=await importProjects(supabase,{fileName:file.name,sheetName,items:normalized,rowCount:raw.length,duplicates,errors,apply:form.get("apply")==="1"})}
   catch(e:any){return NextResponse.json({error:"Database import failed",details:e?.message||String(e),row_errors:errors.slice(0,100)},{status:500})}
   let allocation:any[]=[];try{allocation=await allocate(supabase,sess.uid)}catch{}
-  return NextResponse.json({ok:true,allocation,file:file.name,sheet:sheetName,source_rows:raw.length,valid_unique_rows:normalized.length,duplicate_rows:duplicates.length,invalid_rows:errors.length,result:data,...diag,row_errors:errors.slice(0,100)});
+  const tot=await supabase.from("projects").select("job_id",{count:"exact",head:true});const dbTotal=tot.count??null;
+  return NextResponse.json({ok:true,db_total:dbTotal,allocation,file:file.name,sheet:sheetName,source_rows:raw.length,valid_unique_rows:normalized.length,duplicate_rows:duplicates.length,invalid_rows:errors.length,result:data,...diag,row_errors:errors.slice(0,100)});
  }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Unexpected import error"},{status:400});}
 }
