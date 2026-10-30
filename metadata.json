@@ -1,6 +1,7 @@
 {
   "name": "ARMS — Intercom Archive Management System",
-  "description": "Enterprise archive management system for Intercom operational project reports, box and dossier allocation, label printing, delivery tracking, and audit logging.",
+  "description": "Production-ready enterprise archive management system for Intercom operational project reports, box and dossier allocation, Excel import, label printing, and audit tracking.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
+
