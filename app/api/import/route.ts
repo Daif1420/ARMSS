@@ -16,11 +16,11 @@ export async function POST(req:Request){
   if(file.size>20*1024*1024)return NextResponse.json({error:"File exceeds the 20 MB limit."},{status:413});
   const bytes=Buffer.from(await file.arrayBuffer());
   const wb=XLSX.read(bytes,{type:"buffer",cellDates:true});
-  let P;try{P=parseWorkbook(wb)}catch(e:any){return NextResponse.json({error:e?.message||"Could not read workbook"},{status:e?.status||422})}
+  let P;try{P=parseWorkbook(wb,String(form.get("sheet")||"")||undefined)}catch(e:any){return NextResponse.json({error:e?.message||"Could not read workbook"},{status:e?.status||422})}
   const sheetName=P.sheetName,normalized=P.items,duplicates=P.duplicates,errors=P.errors,raw={length:P.sourceRows};
   const maxRows=Number(process.env.ARMS_IMPORT_MAX_ROWS||20000);
   if(raw.length>maxRows)return NextResponse.json({error:`Workbook has ${raw.length} rows; configured maximum is ${maxRows}.`},{status:413});
-  const diag={mapping:P.mapping,header_row:P.headerRow,null_counts:P.nullCounts,warnings:P.warnings};
+  const diag={sheets:P.sheets,mapping:P.mapping,header_row:P.headerRow,null_counts:P.nullCounts,warnings:P.warnings};
   if(!normalized.length)return NextResponse.json({error:"No valid project rows found.",row_errors:errors.slice(0,100)},{status:422});
   const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
   if(form.get("preview")==="1"){const ids=normalized.map(x=>x.job_id),ex=new Map<number,any>();

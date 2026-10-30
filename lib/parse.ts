@@ -90,6 +90,7 @@ export type Parsed = {
   sheetName: string; headerRow: number; sourceRows: number; mapping: Mapping;
   items: any[]; duplicates: number[]; errors: { row: number; error: string }[];
   nullCounts: Record<string, number>; warnings: string[];
+  sheets: { name: string; rows: number; min: number; max: number; in_boxes: number }[];
 };
 
 // Reads one sheet as an array of rows, finds the header row (first 15 rows), maps columns.
@@ -103,13 +104,34 @@ function readSheet(ws: XLSX.WorkSheet) {
   return null;
 }
 
-export function parseWorkbook(wb: XLSX.WorkBook): Parsed {
+const BOX_START = 35150; // first Job ID covered by the box allocation rule (lib/alloc.ts)
+// Every sheet that has a Job ID column, with the Job ID range it holds and how many IDs fall inside the box rule.
+export function scanSheets(wb: XLSX.WorkBook) {
+  const out: Parsed["sheets"] = [];
+  for (const name of wb.SheetNames) {
+    const r = readSheet(wb.Sheets[name]); if (!r) continue;
+    const ci = r.headers.indexOf(r.mapping.job_id as string);
+    const ids = r.grid.slice(r.hi + 1).map(x => Number(String(x[ci] ?? "").replace(/[^0-9]/g, ""))).filter(n => n > 0 && n < 1e6);
+    if (!ids.length) continue;
+    out.push({ name, rows: ids.length, min: Math.min(...ids), max: Math.max(...ids), in_boxes: ids.filter(n => n >= BOX_START).length });
+  }
+  return out;
+}
+
+export function parseWorkbook(wb: XLSX.WorkBook, wanted?: string): Parsed {
+  const sheets = scanSheets(wb);
   const preferred = ["البيانات (2)", "بيانات المشاريع"];
   const order = [...preferred.filter(n => wb.SheetNames.includes(n)), ...wb.SheetNames.filter(n => !preferred.includes(n))];
   // prefer a sheet that has the ID column AND at least one totals column; then any sheet with an ID column
   let best: { name: string; r: NonNullable<ReturnType<typeof readSheet>> } | null = null;
   const seen: string[] = [];
-  for (const name of order) {
+  if (wanted && wb.SheetNames.includes(wanted)) { const r = readSheet(wb.Sheets[wanted]); if (!r) throw Object.assign(new Error(`Sheet "${wanted}" has no Job ID column.`), { status: 422 }); best = { name: wanted, r }; }
+  else {
+    // No sheet chosen: use the sheet whose Job IDs fall inside the box allocation rule (most of them); otherwise fall back to the preferred names.
+    const top = [...sheets].sort((a, b) => b.in_boxes - a.in_boxes)[0];
+    if (top && top.in_boxes > 0) { const r = readSheet(wb.Sheets[top.name]); if (r) best = { name: top.name, r }; }
+  }
+  if (!best) for (const name of order) {
     const r = readSheet(wb.Sheets[name]); if (!r) { seen.push(name); continue; }
     const totals = [r.mapping.total_boxes, r.mapping.total_documents, r.mapping.total_sheets].filter(Boolean).length;
     if (totals > 0) { best = { name, r }; break; }
@@ -157,5 +179,5 @@ export function parseWorkbook(wb: XLSX.WorkBook): Parsed {
     if (!mapping[f]) warnings.push(`Column for "${label[f]}" was NOT found in sheet "${sheetName}" — numbers would be saved empty. Found columns: ${headers.filter(Boolean).join(" | ")}`);
     else if (items.length && nullCounts[f] === items.length) warnings.push(`Column "${mapping[f]}" (${label[f]}) is empty/non-numeric in every row.`);
   }
-  return { sheetName, headerRow: hi + 1, sourceRows: dataRows.length, mapping, items, duplicates, errors, nullCounts, warnings };
+  return { sheets, sheetName, headerRow: hi + 1, sourceRows: dataRows.length, mapping, items, duplicates, errors, nullCounts, warnings };
 }

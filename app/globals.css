@@ -158,6 +158,14 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--soft)}
 .facts .w2{grid-column:span 3}@media(max-width:480px){.facts{grid-template-columns:1fr 1fr}.facts .w2{grid-column:span 2}}
 .modal .bar input{flex:1;min-width:140px}
 
+/* ---- progress ---- */
+.prog{margin:16px 0 4px}.prog .pt{display:flex;justify-content:space-between;font-size:13.5px;color:var(--t2);margin-bottom:8px}.prog .pt b{color:var(--t);font-weight:600}
+.pb{height:8px;border-radius:4px;background:var(--fill);overflow:hidden;position:relative}
+.pb i{display:block;height:100%;background:var(--p);border-radius:4px;transition:width .2s}
+.pb.ind i{width:35%!important;position:absolute;animation:ind 1.2s ease-in-out infinite}
+@keyframes ind{from{left:-35%}to{left:100%}}
+@media(prefers-reduced-motion:reduce){.pb.ind i{animation:none;width:100%!important}}
+
 /* ---- login ---- */
 .lg{position:fixed;inset:0;z-index:60;overflow:auto;display:grid;place-items:center;padding:20px;background:var(--bg)}
 .lgc{width:100%;max-width:380px;text-align:center}
