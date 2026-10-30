@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
+import {importProjects} from "../../../lib/importer";
 import {parseWorkbook} from "../../../lib/parse";
 import {session} from "../../../lib/server";import {allocate} from "../../../lib/alloc";
 
@@ -27,8 +28,9 @@ export async function POST(req:Request){
    let nw=0,ch=0,same=0,fill=0;const sample:any[]=[];
    for(const n of normalized){const o=ex.get(n.job_id);if(!o){nw++;continue}const df=["job_name","branch_name","total_boxes","total_documents","total_sheets","date_of_delivery"].filter(k=>String(o[k]??"")!==String(n[k]??""));if(df.length){ch++;const FL=["job_name","branch_name","total_boxes","total_documents","total_sheets","date_of_delivery"];if(FL.some(k=>(o[k]===null||o[k]===undefined||o[k]==="")&&n[k]!==null&&n[k]!==undefined))fill++;if(sample.length<50)sample.push({job_id:n.job_id,fields:df.join(", ")})}else same++}
    return NextResponse.json({preview:true,file:file.name,sheet:sheetName,source_rows:raw.length,new:nw,changed:ch,existing:same,will_fill_blanks:fill,...diag,duplicate_rows:duplicates.length,invalid_rows:errors.length,changed_sample:sample,row_errors:errors.slice(0,100)})}
-  const {data,error}=await supabase.rpc("arms_import_projects",{p_file_name:file.name,p_sheet_name:sheetName,p_rows:normalized,p_row_count:raw.length,p_duplicate_job_ids:duplicates,p_row_errors:errors,p_apply:form.get("apply")==="1"});
-  if(error)return NextResponse.json({error:"Database import failed",details:error.message,row_errors:errors.slice(0,100)},{status:500});
+  let data:any;
+  try{data=await importProjects(supabase,{fileName:file.name,sheetName,items:normalized,rowCount:raw.length,duplicates,errors,apply:form.get("apply")==="1"})}
+  catch(e:any){return NextResponse.json({error:"Database import failed",details:e?.message||String(e),row_errors:errors.slice(0,100)},{status:500})}
   let allocation:any[]=[];try{allocation=await allocate(supabase,sess.uid)}catch{}
   return NextResponse.json({ok:true,allocation,file:file.name,sheet:sheetName,source_rows:raw.length,valid_unique_rows:normalized.length,duplicate_rows:duplicates.length,invalid_rows:errors.length,result:data,...diag,row_errors:errors.slice(0,100)});
  }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Unexpected import error"},{status:400});}
