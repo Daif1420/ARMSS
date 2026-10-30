@@ -1,0 +1,1 @@
+export const cols=[{k:"job_id",l:"Job ID",num:true},{k:"job_name",l:"Job Name"},{k:"branch_name",l:"Branch Name"},{k:"total_boxes",l:"Total Box",num:true},{k:"total_documents",l:"Total Document",num:true},{k:"total_sheets",l:"Total Sheets",num:true},{k:"date_of_delivery",l:"Date Print"},{k:"status",l:"Project Status",st:true}];
